@@ -1,0 +1,113 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #f0c442;
+  --color-primary-dark: #dcb135;
+  --color-creamy-bg: #FFFDF5;
+  --color-creamy-card: #FFFFFF;
+  --color-creamy-accent: #f9f4e0;
+  --color-text-main: #5c5440;
+  --color-text-sub: #9e9786;
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glow-shadow: 0 8px 30px rgba(240, 196, 66, 0.15);
+}
+
+body.dark {
+  --color-primary: #f0c442;
+  --color-primary-dark: #FFD700;
+  --color-creamy-bg: #050505;
+  --color-creamy-card: rgba(25, 25, 30, 0.6);
+  --color-creamy-accent: rgba(40, 40, 50, 0.4);
+  --color-text-main: #F8F9FA;
+  --color-text-sub: #ADB5BD;
+  --glass-bg: rgba(20, 20, 25, 0.4);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glow-shadow: 0 0 40px rgba(240, 196, 66, 0.25);
+  
+  background-image: radial-gradient(circle at top right, rgba(132, 165, 157, 0.05), transparent 40%),
+                    radial-gradient(circle at bottom left, rgba(240, 196, 66, 0.03), transparent 40%);
+}
+
+@layer base {
+  body {
+    @apply transition-colors duration-500 font-sans;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply backdrop-blur-xl border border-white/20 dark:border-white/5 shadow-soft transition-all duration-300;
+    background: var(--color-creamy-card);
+  }
+  
+  .dark .glass-card {
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+  }
+
+  .premium-shadow {
+    @apply shadow-soft dark:shadow-[0_20px_50px_rgba(0,0,0,1)];
+  }
+
+  .glow-button {
+    @apply shadow-glow dark:shadow-[0_0_25px_rgba(240,196,66,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all;
+  }
+}
+
+/* Material Symbol settings */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+.fill-icon {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Receipt Serrated Edges */
+.serrated-top {
+  background-color: transparent;
+  background-image: linear-gradient(135deg, white 50%, transparent 50%), linear-gradient(225deg, white 50%, transparent 50%);
+  background-position: top left, top right;
+  background-size: 20px 20px;
+  background-repeat: repeat-x;
+}
+
+.dark .serrated-top {
+  background-image: linear-gradient(135deg, #1E1E1E 50%, transparent 50%), linear-gradient(225deg, #1E1E1E 50%, transparent 50%);
+}
+
+.serrated-bottom {
+  background-color: transparent;
+  background-image: linear-gradient(45deg, white 50%, transparent 50%), linear-gradient(-45deg, white 50%, transparent 50%);
+  background-position: bottom left, bottom right;
+  background-size: 20px 20px;
+  background-repeat: repeat-x;
+}
+
+.dark .serrated-bottom {
+  background-image: linear-gradient(45deg, #1E1E1E 50%, transparent 50%), linear-gradient(-45deg, #1E1E1E 50%, transparent 50%);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes slideIn {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
