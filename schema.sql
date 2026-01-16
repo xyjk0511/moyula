@@ -1,76 +1,73 @@
--- 0. 确保 UUID 扩展和权限
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- 【摸鱼站：多用户与信息补全增强脚本】
+-- 执行此脚本以支持用户名、头像及新用户引导流程
 
--- 1. 创建设置表 (Settings)
-CREATE TABLE IF NOT EXISTS settings (
-    id TEXT PRIMARY KEY DEFAULT 'default',
-    salary_per_hour NUMERIC NOT NULL DEFAULT 45.0,
-    is_dark_mode BOOLEAN NOT NULL DEFAULT false,
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 插入默认设置
-INSERT INTO settings (id, salary_per_hour, is_dark_mode)
-VALUES ('default', 45.0, false)
-ON CONFLICT (id) DO NOTHING;
-
--- 2. 创建摸鱼记录表 (Records)
-CREATE TABLE IF NOT EXISTS records (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    date DATE NOT NULL,
-    duration TEXT NOT NULL,
-    earnings NUMERIC NOT NULL,
-    activity_icon TEXT,
-    activity_color TEXT,
-    mood TEXT
-);
-
--- 2.1 迁移：如果 mood 列不存在则添加
+-- 1. 安全升级 settings 表
 DO $$ 
 BEGIN 
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='records' AND column_name='mood') THEN
-        ALTER TABLE records ADD COLUMN mood TEXT;
+    -- 如果表已存在但缺失列，一一添加
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='settings' AND column_name='user_id') THEN
+        CREATE TABLE IF NOT EXISTS settings (
+            user_id UUID PRIMARY KEY REFERENCES auth.users NOT NULL,
+            username TEXT,
+            avatar_url TEXT,
+            salary_per_hour NUMERIC NOT NULL DEFAULT 45.0,
+            is_dark_mode BOOLEAN NOT NULL DEFAULT false,
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+        );
+    ELSE
+        -- 确保列存在
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='settings' AND column_name='username') THEN
+            ALTER TABLE settings ADD COLUMN username TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='settings' AND column_name='avatar_url') THEN
+            ALTER TABLE settings ADD COLUMN avatar_url TEXT;
+        END IF;
     END IF;
 END $$;
 
--- 关闭 RLS (如果是本地开发或测试)
-ALTER TABLE records DISABLE ROW LEVEL SECURITY;
-ALTER TABLE badges DISABLE ROW LEVEL SECURITY;
-ALTER TABLE settings DISABLE ROW LEVEL SECURITY;
-
--- 3. 创建勋章表 (Badges)
-CREATE TABLE IF NOT EXISTS badges (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL UNIQUE,
-    description TEXT NOT NULL,
-    icon TEXT NOT NULL,
-    color TEXT,
-    unlocked BOOLEAN DEFAULT false,
-    unlock_date TIMESTAMPTZ,
-    is_new BOOLEAN DEFAULT false
-);
-
--- 3.1 迁移：清理重复数据并强制添加唯一约束
+-- 2. 安全升级 records 表
 DO $$ 
 BEGIN 
-    -- 尝试清理重复数据 (保留 ID 最小的一个)
-    DELETE FROM badges a USING badges b
-    WHERE a.name = b.name AND a.id > b.id;
-
-    -- 检查并添加唯一约束
-    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name='badges' AND constraint_name='badges_name_key') THEN
-        ALTER TABLE badges ADD CONSTRAINT badges_name_key UNIQUE (name);
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='records' AND column_name='user_id') THEN
+        ALTER TABLE records ADD COLUMN user_id UUID REFERENCES auth.users;
     END IF;
 END $$;
 
--- 插入初始勋章数据 (使用 ON CONFLICT 更新防止重复)
-INSERT INTO badges (name, description, icon, color, unlocked) VALUES
-('带薪拉屎王', '单次摸鱼超过 20 分钟', 'soap', 'text-blue-400', false),
-('摸鱼全勤奖', '连续 7 天记录摸鱼时长', 'verified', 'text-orange-400', false),
-('太空漫游', '累计摸鱼时间达到 10 小时', 'rocket_launch', 'text-purple-400', false),
-('咖啡因崩溃', '单次摸鱼时长超过 2 小时', 'coffee', 'text-brown-400', false)
-ON CONFLICT (name) DO UPDATE SET 
-    description = EXCLUDED.description,
-    icon = EXCLUDED.icon,
-    color = EXCLUDED.color;
+-- 3. 安全升级 badges 表
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='badges' AND column_name='user_id') THEN
+        ALTER TABLE badges ADD COLUMN user_id UUID REFERENCES auth.users;
+    END IF;
+END $$;
+
+-- 4. 清理无效数据并强制非空约束
+DELETE FROM settings WHERE user_id IS NULL;
+DELETE FROM records WHERE user_id IS NULL;
+DELETE FROM badges WHERE user_id IS NULL;
+
+-- 设置 user_id 为必填
+ALTER TABLE settings ALTER COLUMN user_id SET NOT NULL;
+ALTER TABLE records ALTER COLUMN user_id SET NOT NULL;
+ALTER TABLE badges ALTER COLUMN user_id SET NOT NULL;
+
+-- 5. 配置唯一约束
+ALTER TABLE settings DROP CONSTRAINT IF EXISTS settings_pkey CASCADE;
+ALTER TABLE settings ADD PRIMARY KEY (user_id);
+
+ALTER TABLE badges DROP CONSTRAINT IF EXISTS badges_user_name_key;
+ALTER TABLE badges ADD CONSTRAINT badges_user_name_key UNIQUE (user_id, name);
+
+-- 6. 开启 RLS 与 策略
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE badges ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can only access their own settings" ON settings;
+CREATE POLICY "Users can only access their own settings" ON settings FOR ALL USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can only access their own records" ON records;
+CREATE POLICY "Users can only access their own records" ON records FOR ALL USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can only access their own badges" ON badges;
+CREATE POLICY "Users can only access their own badges" ON badges FOR ALL USING (auth.uid() = user_id);

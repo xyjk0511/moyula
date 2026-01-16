@@ -3,7 +3,7 @@ import { useMoyuu } from '../contexts/MoyuuContext';
 import { useNavigate } from 'react-router-dom';
 
 const Home = () => {
-  const { isTimerRunning, startTimer, stopTimer, elapsedSeconds, currentEarnings, records, badges } = useMoyuu();
+  const { isTimerRunning, startTimer, stopTimer, elapsedSeconds, currentEarnings, records, badges, username, avatarUrl } = useMoyuu();
   const navigate = useNavigate();
 
   // Format seconds into HH:MM:SS
@@ -52,20 +52,16 @@ const Home = () => {
         <div className="flex items-center gap-3">
           <div className="relative">
             <div className="size-11 rounded-full bg-gray-200 ring-4 ring-creamy-accent dark:ring-white/5 shadow-sm overflow-hidden">
-              <img src="https://picsum.photos/100/100?random=1" alt="Avatar" className="w-full h-full object-cover" />
+              <img src={avatarUrl || "https://picsum.photos/100/100?random=1"} alt="Avatar" className="w-full h-full object-cover" />
             </div>
             <div className="absolute -bottom-0.5 -right-0.5 size-3.5 bg-green-400 border-2 border-white dark:border-[#1E1E1E] rounded-full"></div>
           </div>
           <div className="flex flex-col">
             <span className="text-[10px] font-bold text-text-sub uppercase tracking-widest">摸鱼状态</span>
-            <h2 className="text-base font-bold text-text-main">摸鱼专员 #007</h2>
+            <h2 className="text-base font-bold text-text-main">{username || '摸鱼专员'}</h2>
           </div>
         </div>
-        <button
-          onClick={() => navigate('/settings')}
-          className="flex items-center justify-center size-11 rounded-full bg-creamy-card shadow-card border border-gray-100 dark:border-white/10 hover:bg-creamy-accent dark:hover:bg-white/5 transition-all">
-          <span className="material-symbols-outlined text-[22px] text-text-sub">settings</span>
-        </button>
+        <div className="size-11"></div>
       </header>
 
       {/* Daily Card */}

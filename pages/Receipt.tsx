@@ -5,7 +5,8 @@ import { useMoyuu } from '../contexts/MoyuuContext';
 const Receipt = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { currentEarnings, resetTimer, elapsedSeconds, saveRecord } = useMoyuu();
+    const { currentEarnings, resetTimer, elapsedSeconds, saveRecord, isSaving } = useMoyuu();
+    const [saveStatus, setSaveStatus] = React.useState<'idle' | 'saving' | 'success' | 'error'>('idle');
 
     // Check if we are viewing a historical record
     const historicalRecord = location.state?.record;
@@ -26,8 +27,15 @@ const Receipt = () => {
             return;
         }
 
+        if (saveStatus === 'success') {
+            resetTimer();
+            navigate('/');
+            return;
+        }
+
         if (elapsedSeconds > 0) {
-            await saveRecord({
+            setSaveStatus('saving');
+            const success = await saveRecord({
                 date: recordData.date,
                 duration: recordData.duration,
                 earnings: recordData.earnings,
@@ -37,9 +45,21 @@ const Receipt = () => {
                 activityColor: 'bg-accent-sky/40',
                 mood: moodEmoji
             });
+
+            if (success) {
+                setSaveStatus('success');
+                // Auto-close after 1.5s on success
+                setTimeout(() => {
+                    resetTimer();
+                    navigate('/');
+                }, 1500);
+            } else {
+                setSaveStatus('error');
+            }
+        } else {
+            resetTimer();
+            navigate('/');
         }
-        resetTimer();
-        navigate('/');
     };
 
     function formatTime(totalSeconds: number) {
@@ -59,11 +79,15 @@ const Receipt = () => {
                     <span className="material-symbols-outlined text-text-main">close</span>
                 </button>
                 <div className="glass-card px-4 py-1.5 rounded-full border-none flex items-center gap-2">
-                    <span className={`material-symbols-outlined text-[14px] ${isHistorical ? 'text-blue-500' : 'text-green-500'}`}>
-                        {isHistorical ? 'history' : 'verified'}
+                    <span className={`material-symbols-outlined text-[14px] ${saveStatus === 'error' ? 'text-red-500' :
+                            isHistorical ? 'text-blue-500' : 'text-green-500'
+                        }`}>
+                        {saveStatus === 'error' ? 'error' : isHistorical ? 'history' : 'verified'}
                     </span>
-                    <span className={`text-[10px] font-black uppercase tracking-widest ${isHistorical ? 'text-blue-500' : 'text-green-500'}`}>
-                        {isHistorical ? '历史记录' : '今日记录'}
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${saveStatus === 'error' ? 'text-red-500' :
+                            isHistorical ? 'text-blue-500' : 'text-green-500'
+                        }`}>
+                        {saveStatus === 'error' ? '保存失败' : isHistorical ? '历史记录' : '今日记录'}
                     </span>
                 </div>
                 <div className="size-10"></div>
@@ -139,9 +163,28 @@ const Receipt = () => {
             <div className="p-8 glass-card border-none bg-creamy-bg/80 dark:bg-[#050505]/80 backdrop-blur-lg mt-auto">
                 <button
                     onClick={handleClose}
-                    className="w-full h-12 bg-text-main dark:bg-white text-white dark:text-black rounded-full font-black text-sm uppercase tracking-widest glow-button border-2 border-transparent hover:scale-[1.02] active:scale-[0.98] transition-all"
+                    disabled={isSaving || saveStatus === 'success'}
+                    className={`w-full h-12 rounded-full font-black text-sm uppercase tracking-widest transition-all border-2 border-transparent ${saveStatus === 'error'
+                            ? 'bg-red-500 text-white shadow-red-500/20'
+                            : saveStatus === 'success'
+                                ? 'bg-green-500 text-white'
+                                : 'bg-text-main dark:bg-white text-white dark:text-black glow-button'
+                        } ${isSaving ? 'opacity-70 scale-[0.98]' : 'hover:scale-[1.02] active:scale-[0.98]'}`}
                 >
-                    {isHistorical ? '返回统计' : '保存记录'}
+                    {isSaving ? (
+                        <div className="flex items-center justify-center gap-2">
+                            <span className="animate-spin text-lg">sync</span>
+                            <span>正在同步...</span>
+                        </div>
+                    ) : saveStatus === 'error' ? (
+                        '重试保存'
+                    ) : saveStatus === 'success' ? (
+                        '保存成功 ✓'
+                    ) : isHistorical ? (
+                        '返回统计'
+                    ) : (
+                        '确认并保存'
+                    )}
                 </button>
             </div>
         </div>
